@@ -24,3 +24,5 @@ services:
       AGENT: 'True'
       LINKAI_API_KEY: ''
       LINKAI_APP_CODE: ''
+    volumes:
+      - ./channel/web/web_chat.db:/app/channel/web/web_chat.db

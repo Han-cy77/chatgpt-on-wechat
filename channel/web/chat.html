@@ -29,6 +29,104 @@
             --shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
         }
 
+        /* Sidebar Styles Update */
+        #sidebar-header {
+            padding: 10px;
+        }
+        
+        #search-container {
+            margin-top: 10px;
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        #search-keyword {
+            width: 100%;
+            padding: 8px;
+            border-radius: 4px;
+            border: 1px solid rgba(255,255,255,0.2);
+            background: rgba(255,255,255,0.1);
+            color: white;
+        }
+        
+        .date-range {
+            display: flex;
+            gap: 5px;
+            align-items: center;
+        }
+        
+        .date-range input {
+            width: 45%;
+            padding: 5px;
+            border-radius: 4px;
+            border: 1px solid rgba(255,255,255,0.2);
+            background: rgba(255,255,255,0.1);
+            color: white;
+            font-size: 0.8rem;
+        }
+        
+        #search-btn {
+            padding: 5px;
+            background: var(--primary-color);
+            border: none;
+            border-radius: 4px;
+            color: white;
+            cursor: pointer;
+        }
+
+        .btn-small {
+            padding: 5px 10px;
+            background: rgba(255,255,255,0.1);
+            border: 1px solid rgba(255,255,255,0.2);
+            color: white;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.8rem;
+        }
+        
+        .btn-small:hover {
+            background: rgba(255,255,255,0.2);
+        }
+
+        .history-item {
+            padding: 10px;
+            border-radius: 6px;
+            margin-bottom: 5px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: space-between; /* Changed for delete btn */
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        
+        .history-title {
+            display: flex;
+            align-items: center;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            flex: 1;
+        }
+
+        .delete-btn {
+            opacity: 0;
+            color: #ff4d4f;
+            padding: 2px 6px;
+            border-radius: 4px;
+            transition: opacity 0.2s;
+        }
+        
+        .history-item:hover .delete-btn {
+            opacity: 1;
+        }
+        
+        .delete-btn:hover {
+            background: rgba(255, 77, 79, 0.2);
+        }
+
         * {
             margin: 0;
             padding: 0;
@@ -717,6 +815,100 @@
             }
         }
 
+        /* Auth Modal */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 2000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+            align-items: center;
+            justify-content: center;
+        }
+        .modal-content {
+            background-color: var(--bg-color);
+            padding: 30px;
+            border-radius: 10px;
+            width: 90%;
+            max-width: 400px;
+            position: relative;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        .close-modal {
+            position: absolute;
+            right: 20px;
+            top: 15px;
+            font-size: 24px;
+            cursor: pointer;
+            color: var(--text-light);
+        }
+        .modal-title {
+            font-size: 1.5rem;
+            margin-bottom: 20px;
+            text-align: center;
+            font-weight: bold;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            color: var(--text-color);
+        }
+        .form-group input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid var(--border-color);
+            border-radius: 5px;
+            background-color: var(--chat-bg);
+            color: var(--text-color);
+        }
+        .btn-primary {
+            width: 100%;
+            padding: 10px;
+            background-color: #10a37f;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            margin-top: 10px;
+        }
+        .btn-primary:hover {
+            background-color: #0e906f;
+        }
+        .auth-toggle {
+            margin-top: 15px;
+            text-align: center;
+            font-size: 0.9rem;
+            color: var(--text-light);
+        }
+        .auth-toggle a {
+            color: #10a37f;
+            cursor: pointer;
+            text-decoration: underline;
+        }
+        
+        #logout-btn {
+            cursor: pointer;
+            padding: 5px 10px;
+            color: var(--text-light);
+            display: none;
+        }
+        #logout-btn:hover {
+            color: var(--text-color);
+        }
+        #user-info {
+            cursor: pointer;
+            flex: 1;
+            display: flex;
+            align-items: center;
+        }
+
         .history-divider {
             padding: 10px;
             color: var(--text-light);
@@ -741,17 +933,34 @@
 <body>
     <div id="app-container">
         <div id="sidebar">
-            <div id="new-chat">
-                <i class="fas fa-plus"></i>
-                <span>新对话</span>
+            <div id="sidebar-header">
+                <div id="new-chat">
+                    <i class="fas fa-plus"></i>
+                    <span>新对话</span>
+                </div>
+                <div id="search-container">
+                    <input type="text" id="search-keyword" placeholder="搜索对话...">
+                    <div class="date-range">
+                        <input type="date" id="search-start-date" title="开始日期">
+                        <span>-</span>
+                        <input type="date" id="search-end-date" title="结束日期">
+                    </div>
+                    <button id="search-btn" onclick="searchConversations()">搜索</button>
+                </div>
             </div>
             <div id="chat-history">
                 <!-- 历史对话将在这里动态添加 -->
             </div>
+            <div id="pagination-controls" style="display: none; padding: 10px; text-align: center;">
+                <button id="load-more-btn" onclick="loadMoreConversations()" class="btn-small">加载更多</button>
+            </div>
             <div id="sidebar-footer">
-                <div id="user-info">
+                <div id="user-info" onclick="showAuthModal()">
                     <div id="user-avatar">U</div>
-                    <span>用户</span>
+                    <span id="username-display">点击登录</span>
+                </div>
+                <div id="logout-btn" onclick="handleLogout(event)" style="display: none;">
+                    <i class="fas fa-sign-out-alt"></i>
                 </div>
             </div>
         </div>
@@ -807,6 +1016,46 @@
         </div>
     </div>
 
+    <!-- Auth Modal -->
+    <div id="auth-modal" class="modal">
+        <div class="modal-content">
+            <span class="close-modal">&times;</span>
+            <div class="modal-header">
+                <div id="auth-title" class="modal-title">登录</div>
+            </div>
+            
+            <div id="login-form">
+                <div class="form-group">
+                    <label>用户名</label>
+                    <input type="text" id="login-username" placeholder="输入用户名">
+                </div>
+                <div class="form-group">
+                    <label>密码</label>
+                    <input type="password" id="login-password" placeholder="输入密码">
+                </div>
+                <button class="btn btn-primary" onclick="handleLogin()">登录</button>
+                <div class="auth-toggle">
+                    没有账号? <a onclick="toggleAuthMode()">去注册</a>
+                </div>
+            </div>
+            
+            <div id="register-form" style="display: none;">
+                <div class="form-group">
+                    <label>用户名</label>
+                    <input type="text" id="reg-username" placeholder="设置用户名">
+                </div>
+                <div class="form-group">
+                    <label>密码</label>
+                    <input type="password" id="reg-password" placeholder="设置密码">
+                </div>
+                <button class="btn btn-primary" onclick="handleRegister()">注册</button>
+                <div class="auth-toggle">
+                    已有账号? <a onclick="toggleAuthMode()">去登录</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script>
         // DOM 元素
         const messagesDiv = document.getElementById('messages');
@@ -826,9 +1075,252 @@
             );
         }
 
-        // 生成初始会话ID
+        // 生成初始会话ID (Anonymous fallback)
         let sessionId = generateSessionId();
-        console.log('Session ID:', sessionId);
+        let authToken = localStorage.getItem('auth_token');
+        let currentUser = localStorage.getItem('username');
+        let currentConversationId = null;
+        let currentOffset = 0;
+        let searchParams = {
+            keyword: '',
+            start_date: null,
+            end_date: null
+        };
+        
+        // UI Elements
+        const authModal = document.getElementById('auth-modal');
+        const loginForm = document.getElementById('login-form');
+        const registerForm = document.getElementById('register-form');
+        const authTitle = document.getElementById('auth-title');
+        const usernameDisplay = document.getElementById('username-display');
+        const logoutBtn = document.getElementById('logout-btn');
+        const closeModalSpan = document.querySelector('.close-modal');
+        const paginationControls = document.getElementById('pagination-controls');
+        const loadMoreBtn = document.getElementById('load-more-btn');
+
+        // Initialize
+        if (authToken && currentUser) {
+            updateUserUI(currentUser);
+            loadConversations(true);
+        } else {
+             // Load anonymous local history if no user
+             // loadMessagesFromLocalStorage(); 
+             // Ideally we might want to clear or keep anonymous history separate
+        }
+
+        // Auth Functions
+        function showAuthModal() {
+            if (authToken) return; // Already logged in
+            authModal.style.display = 'flex';
+        }
+
+        closeModalSpan.onclick = function() {
+            authModal.style.display = "none";
+        }
+
+        function toggleAuthMode() {
+            if (loginForm.style.display === 'none') {
+                loginForm.style.display = 'block';
+                registerForm.style.display = 'none';
+                authTitle.innerText = '登录';
+            } else {
+                loginForm.style.display = 'none';
+                registerForm.style.display = 'block';
+                authTitle.innerText = '注册';
+            }
+        }
+
+        function updateUserUI(username) {
+            usernameDisplay.innerText = username;
+            logoutBtn.style.display = 'block';
+            document.getElementById('user-avatar').innerText = username[0].toUpperCase();
+        }
+
+        function handleLogin() {
+            const u = document.getElementById('login-username').value;
+            const p = document.getElementById('login-password').value;
+            axios.post('/login', {username: u, password: p})
+                .then(res => {
+                    if (res.data.status === 'success') {
+                        authToken = res.data.token;
+                        currentUser = res.data.username;
+                        localStorage.setItem('auth_token', authToken);
+                        localStorage.setItem('username', currentUser);
+                        updateUserUI(currentUser);
+                        authModal.style.display = 'none';
+                        loadConversations(true);
+                        // Create new conversation by default or load last?
+                        startNewChat();
+                    } else {
+                        alert(res.data.message);
+                    }
+                });
+        }
+
+        function handleRegister() {
+            const u = document.getElementById('reg-username').value;
+            const p = document.getElementById('reg-password').value;
+            axios.post('/register', {username: u, password: p})
+                .then(res => {
+                    if (res.data.status === 'success') {
+                        alert('注册成功，请登录');
+                        toggleAuthMode();
+                    } else {
+                        alert(res.data.message);
+                    }
+                });
+        }
+
+        function handleLogout(e) {
+            e.stopPropagation();
+            authToken = null;
+            currentUser = null;
+            localStorage.removeItem('auth_token');
+            localStorage.removeItem('username');
+            usernameDisplay.innerText = '点击登录';
+            logoutBtn.style.display = 'none';
+            document.getElementById('user-avatar').innerText = 'U';
+            loadConversations(); // Show placeholder
+            messagesDiv.innerHTML = '';
+            clearChat();
+        }
+
+        // Conversation Management
+        function loadConversations(reset = false) {
+            if (!authToken) {
+                chatHistory.innerHTML = '<div style="padding: 20px; text-align: center; color: #888; font-size: 0.9em;">登录后查看历史记录</div>';
+                paginationControls.style.display = 'none';
+                return;
+            }
+            
+            if (reset) {
+                currentOffset = 0;
+                chatHistory.innerHTML = '';
+            }
+
+            let url = `/conversations?token=${authToken}&offset=${currentOffset}&limit=20`;
+            if (searchParams.keyword) url += `&keyword=${encodeURIComponent(searchParams.keyword)}`;
+            
+            // Handle date conversion to timestamp (seconds or milliseconds depending on backend)
+            // Backend uses float timestamp (seconds), frontend input date is YYYY-MM-DD
+            if (searchParams.start_date) {
+                const startDate = new Date(searchParams.start_date);
+                url += `&start_date=${startDate.getTime() / 1000}`;
+            }
+            if (searchParams.end_date) {
+                const endDate = new Date(searchParams.end_date);
+                // Set to end of day
+                endDate.setHours(23, 59, 59, 999);
+                url += `&end_date=${endDate.getTime() / 1000}`;
+            }
+
+            axios.get(url)
+                .then(res => {
+                    if (res.data.status === 'success') {
+                        renderHistoryList(res.data.data);
+                        
+                        // Handle pagination
+                        if (res.data.pagination) {
+                            const total = res.data.pagination.total;
+                            currentOffset += res.data.data.length;
+                            
+                            if (currentOffset < total) {
+                                paginationControls.style.display = 'block';
+                            } else {
+                                paginationControls.style.display = 'none';
+                            }
+                        }
+                    }
+                });
+        }
+
+        function searchConversations() {
+            searchParams.keyword = document.getElementById('search-keyword').value;
+            searchParams.start_date = document.getElementById('search-start-date').value;
+            searchParams.end_date = document.getElementById('search-end-date').value;
+            loadConversations(true);
+        }
+
+        function loadMoreConversations() {
+            loadConversations(false);
+        }
+
+        function renderHistoryList(convs) {
+            convs.forEach(c => {
+                const item = document.createElement('div');
+                item.className = 'history-item';
+                if (c.id === currentConversationId) {
+                    item.classList.add('active');
+                }
+                
+                // Format timestamp
+                const date = new Date(c.updated_at * 1000);
+                const dateStr = `${date.getMonth()+1}/${date.getDate()} ${date.getHours()}:${date.getMinutes().toString().padStart(2, '0')}`;
+                
+                item.innerHTML = `
+                    <div class="history-title" onclick="loadConversation('${c.id}')" title="${c.title || 'New Chat'}">
+                        <i class="fas fa-message"></i> 
+                        <span style="margin-left: 5px; overflow: hidden; text-overflow: ellipsis;">${c.title || 'New Chat'}</span>
+                        <span style="font-size: 0.7em; color: #888; margin-left: 5px;">${dateStr}</span>
+                    </div>
+                    <div class="delete-btn" onclick="deleteConversation(event, '${c.id}')">
+                        <i class="fas fa-trash"></i>
+                    </div>
+                `;
+                chatHistory.appendChild(item);
+            });
+        }
+        
+        function deleteConversation(e, cid) {
+            e.stopPropagation();
+            if (!confirm('确定要删除这个对话吗？')) return;
+            
+            axios.delete(`/conversations?token=${authToken}&id=${cid}`)
+                .then(res => {
+                    if (res.data.status === 'success') {
+                        // Reload list
+                        loadConversations(true);
+                        // If deleted current conversation, clear chat
+                        if (cid === currentConversationId) {
+                            startNewChat();
+                        }
+                    } else {
+                        alert(res.data.message);
+                    }
+                });
+        }
+
+        function loadConversation(cid) {
+            currentConversationId = cid;
+            axios.get(`/conversations?token=${authToken}&id=${cid}`)
+                .then(res => {
+                    if (res.data.status === 'success') {
+                        const conv = res.data.data;
+                        messagesDiv.innerHTML = '';
+                        if (conv.messages) {
+                            conv.messages.forEach(m => {
+                                if (m.role === 'user') displayUserMessage(m.content, new Date(m.timestamp*1000));
+                                else displayBotMessage(m.content, new Date(m.timestamp*1000));
+                            });
+                        }
+                    }
+                });
+        }
+
+        function startNewChat() {
+            currentConversationId = null;
+            sessionId = generateSessionId();
+            window.sessionId = sessionId; // Update global session ID
+            clearChat();
+            console.log('New conversation started with new session ID:', sessionId);
+        }
+
+        // Update New Chat Button
+        newChatButton.addEventListener('click', function() {
+            startNewChat();
+            if (authToken) loadConversations(true); // Refresh list with reset
+        });
+
 
         // 获取配置并更新标题
         let appConfig = {
@@ -961,7 +1453,14 @@
                 const timestamp = new Date();
                 
                 // 添加用户消息到界面
-                addUserMessage(userMessage, timestamp);
+                displayUserMessage(userMessage, timestamp);
+                if (!authToken) {
+                     saveMessageToLocalStorage({
+                        role: 'user',
+                        content: userMessage,
+                        timestamp: timestamp.getTime()
+                    });
+                }
                 
                 // 添加一个等待中的机器人消息
                 const loadingContainer = addLoadingMessage();
@@ -974,19 +1473,33 @@
                 // 使用当前的全局会话ID
                 const currentSessionId = window.sessionId || sessionId;
                 
+                // Payload
+                const payload = { 
+                    session_id: currentSessionId,
+                    message: userMessage, 
+                    timestamp: timestamp.toISOString()
+                };
+                
+                if (authToken) {
+                    payload.token = authToken;
+                    payload.conversation_id = currentConversationId;
+                }
+
                 // 发送到服务器并获取请求ID
                 axios({
                     method: 'post',
                     url: '/message',
-                    data: { 
-                        session_id: currentSessionId,  // 使用最新的会话ID
-                        message: userMessage, 
-                        timestamp: timestamp.toISOString()
-                    },
+                    data: payload,
                     timeout: 10000  // 10秒超时
                 })
                 .then(response => {
                     if (response.data.status === "success") {
+                        // Update Conversation ID if new
+                        if (response.data.conversation_id) {
+                            currentConversationId = response.data.conversation_id;
+                            if (authToken) loadConversations(); // Refresh title
+                        }
+
                         // 保存当前请求ID，用于识别响应
                         const currentRequestId = response.data.request_id;
                         

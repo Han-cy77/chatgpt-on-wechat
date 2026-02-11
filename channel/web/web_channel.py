@@ -16,6 +16,7 @@ import os
 import mimetypes  # 添加这行来处理MIME类型
 import threading
 import logging
+from channel.web import db
 
 class WebMessage(ChatMessage):
     def __init__(
@@ -83,6 +84,24 @@ class WebChannel(ChatChannel):
                 logger.error(f"No session_id found for request {request_id}")
                 return
             
+            # Save bot response to DB if authenticated
+            user_id = context.get("user_id")
+            conversation_id = context.get("conversation_id")
+            
+            if user_id and conversation_id:
+                try:
+                    conv = db.get_conversation(conversation_id, user_id)
+                    if conv:
+                        messages = conv['messages']
+                        messages.append({
+                            'role': 'assistant', 
+                            'content': reply.content, 
+                            'timestamp': time.time()
+                        })
+                        db.save_conversation(conversation_id, user_id, messages)
+                except Exception as e:
+                    logger.error(f"Error saving bot response to DB: {e}")
+
             # 检查是否有会话队列
             if session_id in self.session_queues:
                 # 创建响应数据，包含请求ID以区分不同请求的响应
@@ -111,6 +130,40 @@ class WebChannel(ChatChannel):
             session_id = json_data.get('session_id', f'session_{int(time.time())}')
             prompt = json_data.get('message', '')
             
+            # Authentication check
+            token = json_data.get('token')
+            user_id = None
+            conversation_id = json_data.get('conversation_id')
+            
+            if token:
+                user = db.get_user_by_token(token)
+                if user:
+                    user_id = user['id']
+            
+            # Save user message if authenticated
+            if user_id:
+                try:
+                    messages = []
+                    title = None
+                    if conversation_id:
+                        conv = db.get_conversation(conversation_id, user_id)
+                        if conv:
+                            messages = conv['messages']
+                    
+                    if not conversation_id:
+                        conversation_id = str(uuid.uuid4())
+                        title = prompt[:20] if prompt else "New Conversation"
+                        
+                    messages.append({
+                        'role': 'user', 
+                        'content': prompt, 
+                        'timestamp': time.time()
+                    })
+                    
+                    db.save_conversation(conversation_id, user_id, messages, title)
+                except Exception as e:
+                    logger.error(f"Error saving user message to DB: {e}")
+
             # 生成请求ID
             request_id = self._generate_request_id()
             
@@ -146,11 +199,19 @@ class WebChannel(ChatChannel):
             context["receiver"] = session_id
             context["request_id"] = request_id
             
+            # Pass user info to context for reply saving
+            if user_id:
+                context["user_id"] = user_id
+                context["conversation_id"] = conversation_id
+            
             # 异步处理消息 - 只传递上下文
             threading.Thread(target=self.produce, args=(context,)).start()
             
-            # 返回请求ID
-            return json.dumps({"status": "success", "request_id": request_id})
+            # 返回请求ID和会话ID
+            response = {"status": "success", "request_id": request_id}
+            if conversation_id:
+                response["conversation_id"] = conversation_id
+            return json.dumps(response)
             
         except Exception as e:
             logger.error(f"Error processing message: {e}")
@@ -211,6 +272,7 @@ class WebChannel(ChatChannel):
         logger.info(f"[WebChannel] 🌐 本地访问: http://localhost:{port}/chat")
         logger.info(f"[WebChannel] 🌍 服务器访问: http://YOUR_IP:{port}/chat (请将YOUR_IP替换为服务器IP)")
         logger.info("[WebChannel] ✅ Web对话网页已运行")
+        logger.info("[WebChannel] 🔒 为了数据安全，建议在生产环境中使用Nginx配置HTTPS反向代理")
         
         # 确保静态文件目录存在
         static_dir = os.path.join(os.path.dirname(__file__), 'static')
@@ -218,11 +280,17 @@ class WebChannel(ChatChannel):
             os.makedirs(static_dir)
             logger.debug(f"[WebChannel] Created static directory: {static_dir}")
         
+        # Initialize DB
+        db.init_db()
+        
         urls = (
             '/', 'RootHandler',
             '/message', 'MessageHandler',
             '/poll', 'PollHandler',
             '/chat', 'ChatHandler',
+            '/login', 'LoginHandler',
+            '/register', 'RegisterHandler',
+            '/conversations', 'ConversationHandler',
             '/config', 'ConfigHandler',
             '/assets/(.*)', 'AssetsHandler',
         )
@@ -242,6 +310,46 @@ class WebChannel(ChatChannel):
             web.httpserver.runsimple(app.wsgifunc(), ("0.0.0.0", port))
         finally:
             sys.stdout = old_stdout
+
+
+def login_required(func):
+    def wrapper(self, *args, **kwargs):
+        try:
+            # Check for token in query params or headers or body
+            data = web.input(token=None)
+            token = data.token
+            
+            # If not in query, check header
+            if not token:
+                auth_header = web.ctx.env.get('HTTP_AUTHORIZATION')
+                if auth_header and auth_header.startswith('Bearer '):
+                    token = auth_header.split(' ')[1]
+            
+            if not token:
+                 # Try json body
+                try:
+                    json_data = json.loads(web.data())
+                    token = json_data.get('token')
+                except:
+                    pass
+
+            if not token:
+                 web.header('Content-Type', 'application/json')
+                 return json.dumps({'status': 'error', 'message': 'Authentication required', 'code': 401})
+
+            user = db.get_user_by_token(token)
+            if not user:
+                web.header('Content-Type', 'application/json')
+                return json.dumps({'status': 'error', 'message': 'Invalid or expired token', 'code': 401})
+            
+            # Attach user to self
+            self.current_user = user
+            return func(self, *args, **kwargs)
+        except Exception as e:
+            logger.error(f"Auth error: {e}")
+            web.header('Content-Type', 'application/json')
+            return json.dumps({'status': 'error', 'message': str(e), 'code': 500})
+    return wrapper
 
 
 class RootHandler:
@@ -266,6 +374,105 @@ class ChatHandler:
         file_path = os.path.join(os.path.dirname(__file__), 'chat.html')
         with open(file_path, 'r', encoding='utf-8') as f:
             return f.read()
+
+
+class LoginHandler:
+    def POST(self):
+        try:
+            data = json.loads(web.data())
+            username = data.get('username')
+            password = data.get('password')
+            token, user = db.login_user(username, password)
+            if token:
+                return json.dumps({'status': 'success', 'token': token, 'username': user})
+            return json.dumps({'status': 'error', 'message': 'Invalid username or password'})
+        except Exception as e:
+            return json.dumps({'status': 'error', 'message': str(e)})
+
+
+class RegisterHandler:
+    def POST(self):
+        try:
+            data = json.loads(web.data())
+            username = data.get('username')
+            password = data.get('password')
+            if not username or not password:
+                return json.dumps({'status': 'error', 'message': 'Username and password required'})
+            success, msg = db.register_user(username, password)
+            if success:
+                return json.dumps({'status': 'success'})
+            return json.dumps({'status': 'error', 'message': msg})
+        except Exception as e:
+            return json.dumps({'status': 'error', 'message': str(e)})
+
+
+class ConversationHandler:
+    @login_required
+    def GET(self):
+        try:
+            data = web.input(id=None, keyword=None, limit=20, offset=0, start_date=None, end_date=None)
+            cid = data.id
+            keyword = data.keyword
+            
+            try:
+                limit = int(data.limit)
+                offset = int(data.offset)
+            except ValueError:
+                limit = 20
+                offset = 0
+
+            start_date = float(data.start_date) if data.start_date else None
+            end_date = float(data.end_date) if data.end_date else None
+
+            if cid:
+                # Get specific conversation
+                conv = db.get_conversation(cid, self.current_user['id'])
+                if conv:
+                    return json.dumps({'status': 'success', 'data': conv})
+                return json.dumps({'status': 'error', 'message': 'Conversation not found'})
+            else:
+                # List conversations
+                convs = db.get_conversations(
+                    self.current_user['id'], 
+                    limit=limit, 
+                    offset=offset, 
+                    keyword=keyword,
+                    start_date=start_date,
+                    end_date=end_date
+                )
+                total = db.get_conversation_count(
+                    self.current_user['id'],
+                    keyword=keyword,
+                    start_date=start_date,
+                    end_date=end_date
+                )
+                return json.dumps({
+                    'status': 'success', 
+                    'data': convs, 
+                    'pagination': {
+                        'total': total,
+                        'limit': limit,
+                        'offset': offset
+                    }
+                })
+        except Exception as e:
+            logger.error(f"Error in ConversationHandler: {e}")
+            return json.dumps({'status': 'error', 'message': str(e)})
+
+    @login_required
+    def DELETE(self):
+        try:
+            data = web.input(id=None)
+            cid = data.id
+            
+            if not cid:
+                return json.dumps({'status': 'error', 'message': 'Conversation ID required'})
+                
+            db.delete_conversation(cid, self.current_user['id'])
+            return json.dumps({'status': 'success'})
+        except Exception as e:
+            logger.error(f"Error deleting conversation: {e}")
+            return json.dumps({'status': 'error', 'message': str(e)})
 
 
 class ConfigHandler:
